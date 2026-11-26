@@ -7,10 +7,18 @@
 > revisión (R)**; el rediseño de un módulo suma a **subcambios menores (Z)**
 > y a la revisión.
 
-## 1.2.2-9 (actual)
+## 1.2.2-10 (actual)
 
-Versión **1**, sub modificación semigrande **2**, subcambios menores **2**, revisión **9**.
-Cuatro correcciones de precisión en el reporte PDF:
+Versión **1**, sub modificación semigrande **2**, subcambios menores **2**, revisión **10**.
+Unificación de catálogos institucional (app y panel): misma estructura y datos en SQLite de la app y MySQL del panel.
+
+### Base de datos unificada (SQLite app + MySQL panel)
+- `admin_panel/sql/schema.sql` (panel): misma estructura y datos que la app SQLite. 32 estados, 2,469 municipios, 13,347 escuelas, 29 idiomas, 30 preguntas RIASEC, 11 carreras, 6 preguntas departamentales, 66 pesos RIASEC, 55 relaciones carrera-pregunta.
+- Tabla `students` con columnas `state_id` y `municipality_id` (sin FK de `school_id` para evitar error ER_NO_REFERENCED_ROW_2 cuando el `school_id` de la app no existe en el panel).
+- Endpoint `/api/evaluations` guarda `state_id` y `municipality_id` al recibir evaluación.
+- Las consultas del dashboard usan `COALESCE(s.municipality_id, sc.municipality_id)` y `COALESCE(s.state_id, m.state_id)` para obtener estado/municipio directamente de `students`, con fallback a JOIN por escuela. Evita que aparezca "No especificado" / "No especificada" en procedencia y escuela.
+
+## 1.2.2-9
 
 - **Folio y nombre de archivo en fecha local**: `toISOString()` usa UTC, así que
   el folio decía `RV-…-09-23` mientras el encabezado mostraba «22 de

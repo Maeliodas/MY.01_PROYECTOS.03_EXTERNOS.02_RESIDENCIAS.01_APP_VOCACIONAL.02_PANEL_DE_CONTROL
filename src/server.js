@@ -269,9 +269,9 @@ app.post('/api/evaluations', requireApiKey, async (req, res) => {
       schoolSuggestionId = suggestionRows[0]?.id ?? null;
     }
     const [studentInsert] = await connection.execute(
-      `INSERT INTO students (local_profile_id,name,age,gender,school_id,school_suggestion_id)
-       VALUES (?,?,?,?,?,?)`,
-      [student.local_profile_id ?? null, student.name, Number(student.age), student.gender ?? null, student.school_id ?? null, schoolSuggestionId],
+      `INSERT INTO students (local_profile_id,name,age,gender,school_id,school_suggestion_id,state_id,municipality_id)
+       VALUES (?,?,?,?,?,?,?,?)`,
+      [student.local_profile_id ?? null, student.name, Number(student.age), student.gender ?? null, student.school_id ?? null, schoolSuggestionId, student.state_id ?? null, student.municipality_id ?? null],
     );
     for (const name of Array.isArray(student.languages) ? student.languages : []) {
       await connection.execute('INSERT INTO student_languages (student_id, kind, name) VALUES (?, ?, ?)', [studentInsert.insertId, 'lengua', String(name)]);
@@ -349,11 +349,11 @@ async function dashboardData(query = {}) {
   const base = `FROM evaluations e
     JOIN students s ON s.id=e.student_id
     LEFT JOIN schools sc ON sc.id=s.school_id
-    LEFT JOIN municipalities m ON m.id=sc.municipality_id
-    LEFT JOIN states st ON st.id=m.state_id
+    LEFT JOIN municipalities m ON m.id=COALESCE(s.municipality_id, sc.municipality_id)
+    LEFT JOIN states st ON st.id=COALESCE(s.state_id, m.state_id)
     LEFT JOIN catalog_suggestions cs ON cs.id=s.school_suggestion_id AND cs.kind='escuela'
-    LEFT JOIN municipalities pm ON pm.id=cs.municipality_id
-    LEFT JOIN states pst ON pst.id=pm.state_id`;
+    LEFT JOIN municipalities pm ON pm.id=COALESCE(cs.municipality_id, s.municipality_id)
+    LEFT JOIN states pst ON pst.id=COALESCE(s.state_id, pm.state_id)`;
   const [[totals]] = await pool.query(
     `SELECT COUNT(*) total_evaluations, COUNT(DISTINCT COALESCE(sc.name,cs.name)) schools,
             ROUND(AVG(e.top_career_affinity),1) average_affinity,
@@ -376,16 +376,16 @@ async function dashboardData(query = {}) {
   const [languages] = await pool.query(
     `SELECT sl.name label, COUNT(*) value FROM student_languages sl
      JOIN students s ON s.id=sl.student_id JOIN evaluations e ON e.student_id=s.id
-     LEFT JOIN schools sc ON sc.id=s.school_id LEFT JOIN municipalities m ON m.id=sc.municipality_id LEFT JOIN states st ON st.id=m.state_id
-     LEFT JOIN catalog_suggestions cs ON cs.id=s.school_suggestion_id AND cs.kind='escuela' LEFT JOIN municipalities pm ON pm.id=cs.municipality_id LEFT JOIN states pst ON pst.id=pm.state_id
+     LEFT JOIN schools sc ON sc.id=s.school_id LEFT JOIN municipalities m ON m.id=COALESCE(s.municipality_id, sc.municipality_id) LEFT JOIN states st ON st.id=COALESCE(s.state_id, m.state_id)
+     LEFT JOIN catalog_suggestions cs ON cs.id=s.school_suggestion_id AND cs.kind='escuela' LEFT JOIN municipalities pm ON pm.id=COALESCE(cs.municipality_id, s.municipality_id) LEFT JOIN states pst ON pst.id=COALESCE(s.state_id, pm.state_id)
      WHERE sl.kind='lengua' ${languageFilter} GROUP BY sl.name ORDER BY value DESC,sl.name LIMIT 10`,
     params,
   );
   const [idioms] = await pool.query(
     `SELECT sl.name label, COUNT(*) value FROM student_languages sl
      JOIN students s ON s.id=sl.student_id JOIN evaluations e ON e.student_id=s.id
-     LEFT JOIN schools sc ON sc.id=s.school_id LEFT JOIN municipalities m ON m.id=sc.municipality_id LEFT JOIN states st ON st.id=m.state_id
-     LEFT JOIN catalog_suggestions cs ON cs.id=s.school_suggestion_id AND cs.kind='escuela' LEFT JOIN municipalities pm ON pm.id=cs.municipality_id LEFT JOIN states pst ON pst.id=pm.state_id
+     LEFT JOIN schools sc ON sc.id=s.school_id LEFT JOIN municipalities m ON m.id=COALESCE(s.municipality_id, sc.municipality_id) LEFT JOIN states st ON st.id=COALESCE(s.state_id, m.state_id)
+     LEFT JOIN catalog_suggestions cs ON cs.id=s.school_suggestion_id AND cs.kind='escuela' LEFT JOIN municipalities pm ON pm.id=COALESCE(cs.municipality_id, s.municipality_id) LEFT JOIN states pst ON pst.id=COALESCE(s.state_id, pm.state_id)
      WHERE sl.kind='idioma' ${languageFilter} GROUP BY sl.name ORDER BY value DESC,sl.name LIMIT 10`,
     params,
   );
@@ -412,11 +412,11 @@ async function dashboardData(query = {}) {
        JOIN evaluations e ON e.id=oa.evaluation_id
        JOIN students s ON s.id=e.student_id
        LEFT JOIN schools sc ON sc.id=s.school_id
-       LEFT JOIN municipalities m ON m.id=sc.municipality_id
-       LEFT JOIN states st ON st.id=m.state_id
+       LEFT JOIN municipalities m ON m.id=COALESCE(s.municipality_id, sc.municipality_id)
+       LEFT JOIN states st ON st.id=COALESCE(s.state_id, m.state_id)
        LEFT JOIN catalog_suggestions cs ON cs.id=s.school_suggestion_id AND cs.kind='escuela'
-       LEFT JOIN municipalities pm ON pm.id=cs.municipality_id
-       LEFT JOIN states pst ON pst.id=pm.state_id
+       LEFT JOIN municipalities pm ON pm.id=COALESCE(cs.municipality_id, s.municipality_id)
+       LEFT JOIN states pst ON pst.id=COALESCE(s.state_id, pm.state_id)
        ${where}
        ORDER BY e.completed_at DESC, oa.id`,
     params,
