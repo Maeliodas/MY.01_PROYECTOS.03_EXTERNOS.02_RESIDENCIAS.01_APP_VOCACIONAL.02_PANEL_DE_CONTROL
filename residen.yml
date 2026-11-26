@@ -1,0 +1,8 @@
+version: "3"
+agent:
+  authtoken: 3J66aYp7SMDhXc137DMlHHRTgZp_4zo9HjxRhojy1nj5UxhEu
+tunnels:
+  residencias:
+    proto: http
+    addr: 127.0.0.1:8080
+
